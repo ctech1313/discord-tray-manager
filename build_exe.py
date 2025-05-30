@@ -130,11 +130,15 @@ def build_executable():
     result = subprocess.run(cmd, capture_output=True, text=True)
     
     if result.returncode == 0:
-        print("✓ Executable built successfully!")
-        print("Executable location: dist/DiscordTrayManager.exe")
-        return True
+        print("Executable built successfully!")
+        if os.path.exists('dist/DiscordTrayManager.exe'):
+            print("Executable location: dist/DiscordTrayManager.exe")
+            return True
+        else:
+            print("Executable not found at expected location")
+            return False
     else:
-        print("✗ Build failed!")
+        print("Build failed!")
         print("Error:", result.stderr)
         return False
 
@@ -157,7 +161,7 @@ def create_build_directory():
         if os.path.exists(file):
             shutil.copy2(file, build_dir)
     
-    print(f"✓ Created portable build directory: {build_dir}")
+    print(f"Created portable build directory: {build_dir}")
 
 def main():
     print("Discord Tray Manager - Build Script")
@@ -173,10 +177,10 @@ def main():
     # Build executable
     if build_executable():
         create_build_directory()
-        print("\n✓ Build completed successfully!")
+        print("\nBuild completed successfully!")
         print("You can find the portable version in: Discord_Tray_Manager_Portable/")
     else:
-        print("\n✗ Build failed. Please check the error messages above.")
+        print("\nBuild failed. Please check the error messages above.")
         sys.exit(1)
 
 if __name__ == "__main__":

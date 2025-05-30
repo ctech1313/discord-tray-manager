@@ -16,7 +16,7 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
     
@@ -33,14 +33,32 @@ jobs:
     
     - name: Install NSIS
       run: |
-        Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.09/nsis-3.09-setup.exe" -OutFile "nsis-setup.exe"
-        Start-Process -FilePath "nsis-setup.exe" -ArgumentList "/S" -Wait
-        echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        choco install nsis -y
+        refreshenv
+    
+    - name: Verify files exist
+      run: |
+        dir dist
+        if (Test-Path "dist\DiscordTrayManager.exe") { 
+          Write-Host "✓ Executable found" 
+        } else { 
+          Write-Host "✗ Executable not found" 
+          exit 1 
+        }
+    
+    - name: Copy files for installer
+      run: |
+        copy "dist\DiscordTrayManager.exe" .
+        copy "config.json" .
+        copy "README.md" .
     
     - name: Build installer
       run: |
-        copy "dist\DiscordTrayManager.exe" .
-        makensis installer.nsi
+        & "C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi
+    
+    - name: Create portable archive
+      run: |
+        Compress-Archive -Path "Discord_Tray_Manager_Portable\*" -DestinationPath "Discord_Tray_Manager_Portable.zip"
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -48,11 +66,11 @@ jobs:
         name: Discord-Tray-Manager-Windows
         path: |
           Discord_Tray_Manager_Setup.exe
-          Discord_Tray_Manager_Portable/
+          Discord_Tray_Manager_Portable.zip
     
     - name: Release binaries
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           Discord_Tray_Manager_Setup.exe

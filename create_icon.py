@@ -27,7 +27,7 @@ def create_simple_icon():
         
         # Save as ICO
         img.save('tray_icon.ico', format='ICO', sizes=[(16, 16), (32, 32)])
-        print("✓ Created tray_icon.ico")
+        print("Created tray_icon.ico")
         
     except ImportError:
         print("PIL/Pillow not available, creating placeholder icon file...")
@@ -71,7 +71,7 @@ def create_placeholder_icon():
     with open('tray_icon.ico', 'wb') as f:
         f.write(ico_data)
     
-    print("✓ Created placeholder tray_icon.ico")
+    print("Created placeholder tray_icon.ico")
 
 def main():
     """Create the icon file"""
