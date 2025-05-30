@@ -15,17 +15,28 @@ import ctypes
 from ctypes import wintypes
 import winreg
 import sys
+from tray_icon_helper import TrayIconManager, refresh_notification_area, is_discord_running, get_discord_processes
 
 # Import our helper module
 from tray_icon_helper import TrayIconManager
 
+# Get user's AppData directory for log file
+def get_log_file_path():
+    """Get the appropriate log file path in user's AppData directory"""
+    appdata_dir = os.path.expandvars(r'%LOCALAPPDATA%\Discord Tray Manager')
+    os.makedirs(appdata_dir, exist_ok=True)
+    return os.path.join(appdata_dir, 'discord_tray_manager.log')
+
 # Setup logging
 def setup_logging(log_level):
+    """Set up logging configuration"""
+    log_file_path = get_log_file_path()
+    
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler('discord_tray_manager.log'),
+            logging.FileHandler(log_file_path),
             logging.StreamHandler()
         ]
     )
@@ -225,17 +236,14 @@ def main():
         print("This application is designed for Windows only.")
         sys.exit(1)
     
-    print("Discord Tray Manager v1.0")
-    print("=" * 30)
-    print("This utility ensures Discord icon stays visible in your system tray.")
-    print("The application will:")
-    print("- Monitor Discord processes every 30 seconds")
-    print("- Detect when the tray icon is missing")
-    print("- Automatically refresh the notification area")
-    print("- Log all activities to discord_tray_manager.log")
-    print()
-    print("Press Ctrl+C to stop.")
-    print()
+    print("Discord Tray Manager")
+    print("=" * 50)
+    print("- Monitors Discord system tray icon")
+    print("- Automatically fixes missing tray icons")
+    print(f"- Checking every {check_interval} seconds")
+    print(f"- Log all activities to {get_log_file_path()}")
+    print("- Press Ctrl+C to stop")
+    print("=" * 50)
     
     manager = DiscordTrayManager()
     

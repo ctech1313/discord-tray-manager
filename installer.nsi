@@ -111,13 +111,15 @@ section "uninstall"
 	delete "$INSTDIR\DiscordTrayManager.exe"
 	delete "$INSTDIR\config.json"
 	delete "$INSTDIR\README.md"
-	delete "$INSTDIR\discord_tray_manager.log"
-	
-	# Always delete uninstaller as the last action
 	delete "$INSTDIR\uninstall.exe"
 	
-	# Try to remove the install directory - this will only happen if it is empty
-	rmDir "$INSTDIR"
+	# Remove log files from AppData (optional - let user decide)
+	MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to remove log files and user data?" IDNO skip_userdata
+	RMDir /r "$LOCALAPPDATA\Discord Tray Manager"
+	skip_userdata:
+	
+	# Remove directory if empty
+	RMDir "$INSTDIR"
 
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"

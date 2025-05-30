@@ -102,15 +102,13 @@ After installation, you'll see a small Discord Tray Manager icon in your system 
 
 ## 📋 Logs
 
-The application creates detailed logs at:
-- **Installed**: `%PROGRAMFILES%\Discord Tray Manager\discord_tray_manager.log`
-- **Portable**: Same folder as executable
+The application logs all activities for troubleshooting:
 
-Logs include:
-- Discord process detection
-- Tray icon status checks
-- Fix attempts and results
-- Any errors or warnings
+- **Portable**: `discord_tray_manager.log` (same directory as executable)
+- **Installed**: `%LOCALAPPDATA%\Discord Tray Manager\discord_tray_manager.log`
+
+Common log locations:
+- **Windows 10/11**: `C:\Users\YourUsername\AppData\Local\Discord Tray Manager\discord_tray_manager.log`
 
 ## 🔧 Troubleshooting
 

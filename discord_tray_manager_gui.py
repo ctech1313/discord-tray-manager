@@ -18,6 +18,7 @@ import sys
 import tkinter as tk
 from tkinter import messagebox
 import base64
+from tray_icon_helper import TrayIconManager, refresh_notification_area, is_discord_running, get_discord_processes
 
 # Import our helper module
 from tray_icon_helper import TrayIconManager
@@ -96,14 +97,24 @@ class SystemTrayApp:
         self.stop_monitoring()
         self.root.quit()
 
-# Setup logging
-def setup_logging(log_level):
+# Get user's AppData directory for log file
+def get_log_file_path():
+    """Get the appropriate log file path in user's AppData directory"""
+    appdata_dir = os.path.expandvars(r'%LOCALAPPDATA%\Discord Tray Manager')
+    os.makedirs(appdata_dir, exist_ok=True)
+    return os.path.join(appdata_dir, 'discord_tray_manager.log')
+
+def setup_logging():
+    """Set up logging configuration"""
+    log_file_path = get_log_file_path()
+    
     logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
+        level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler('discord_tray_manager.log'),
-        ]  # Removed console handler for GUI version
+            logging.FileHandler(log_file_path),
+            logging.StreamHandler()
+        ]
     )
 
 logger = logging.getLogger(__name__)
@@ -132,7 +143,7 @@ class DiscordTrayManager:
             
             # Setup logging with config level
             log_level = config.get('log_level', 'INFO')
-            setup_logging(log_level)
+            setup_logging()
             
             logger.info(f"Loaded configuration")
             
@@ -148,7 +159,7 @@ class DiscordTrayManager:
         self.enable_tray_refresh = True
         self.enable_window_simulation = False
         self.startup_delay = 5
-        setup_logging('INFO')
+        setup_logging()
         
     def is_discord_running(self):
         """Check if any Discord process is currently running"""
