@@ -33,16 +33,21 @@ jobs:
     
     - name: Install NSIS
       run: |
-        choco install nsis -y
-        refreshenv
+        choco install nsis -y --force
+        $env:PATH += ";C:\Program Files (x86)\NSIS"
+        echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    
+    - name: Verify NSIS installation
+      run: |
+        & "C:\Program Files (x86)\NSIS\makensis.exe" /VERSION
     
     - name: Verify files exist
       run: |
         dir dist
         if (Test-Path "dist\DiscordTrayManager.exe") { 
-          Write-Host "✓ Executable found" 
+          Write-Host "Executable found" 
         } else { 
-          Write-Host "✗ Executable not found" 
+          Write-Host "Executable not found" 
           exit 1 
         }
     
@@ -58,7 +63,12 @@ jobs:
     
     - name: Create portable archive
       run: |
-        Compress-Archive -Path "Discord_Tray_Manager_Portable\*" -DestinationPath "Discord_Tray_Manager_Portable.zip"
+        if (Test-Path "Discord_Tray_Manager_Portable") {
+          Compress-Archive -Path "Discord_Tray_Manager_Portable\*" -DestinationPath "Discord_Tray_Manager_Portable.zip"
+        } else {
+          Write-Host "Portable directory not found"
+          exit 1
+        }
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
