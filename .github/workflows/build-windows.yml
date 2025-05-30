@@ -51,11 +51,35 @@ jobs:
           exit 1 
         }
     
-    - name: Copy files for installer
+    - name: Copy executable for installer
       run: |
-        copy "dist\DiscordTrayManager.exe" .
-        copy "config.json" .
-        copy "README.md" .
+        if (!(Test-Path "DiscordTrayManager.exe")) {
+          copy "dist\DiscordTrayManager.exe" .
+          Write-Host "Copied executable to root directory"
+        } else {
+          Write-Host "Executable already exists in root directory"
+        }
+    
+    - name: Verify installer files
+      run: |
+        Write-Host "Files in root directory:"
+        dir
+        if (!(Test-Path "DiscordTrayManager.exe")) { 
+          Write-Host "Missing DiscordTrayManager.exe"
+          exit 1 
+        }
+        if (!(Test-Path "config.json")) { 
+          Write-Host "Missing config.json"
+          exit 1 
+        }
+        if (!(Test-Path "README.md")) { 
+          Write-Host "Missing README.md"
+          exit 1 
+        }
+        if (!(Test-Path "installer.nsi")) { 
+          Write-Host "Missing installer.nsi"
+          exit 1 
+        }
     
     - name: Build installer
       run: |
