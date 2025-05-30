@@ -1,0 +1,45 @@
+# Build artifacts
+build/
+dist/
+*.exe
+*.msi
+*.spec
+version_info.txt
+tray_icon.ico
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs
+*.log
+
+# Wine
+.wine/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+python-*.exe
+python-*.zip
+
+# Portable build directory (will be recreated)
+Discord_Tray_Manager_Portable/ 

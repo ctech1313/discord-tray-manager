@@ -1,0 +1,12 @@
+# Discord Tray Manager Requirements
+# This application uses only Python standard library modules:
+# - ctypes (for Windows API calls)
+# - subprocess (for process management)
+# - json (for configuration)
+# - logging (for logging)
+# - time (for timing)
+# - threading (for background operations)
+# - winreg (for Windows registry access)
+
+# No external dependencies required!
+# This application is designed to be lightweight and use only built-in Python modules. 

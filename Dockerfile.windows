@@ -1,0 +1,28 @@
+# Use Windows container to build Windows executable
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
+
+# Install Chocolatey
+RUN powershell -Command \
+    Set-ExecutionPolicy Bypass -Scope Process -Force; \
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+    iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+# Install Python and NSIS
+RUN choco install -y python3 nsis
+
+# Set up working directory
+WORKDIR C:\\app
+
+# Copy source files
+COPY . .
+
+# Install Python dependencies
+RUN python -m pip install --upgrade pip pyinstaller pillow
+
+# Build the application
+RUN python create_icon.py
+RUN python build_exe.py
+RUN copy "dist\\DiscordTrayManager.exe" .
+RUN makensis installer.nsi
+
+# Output will be the installer and portable version 

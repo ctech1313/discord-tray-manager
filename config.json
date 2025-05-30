@@ -1,0 +1,13 @@
+{
+    "check_interval": 30,
+    "log_level": "INFO",
+    "discord_processes": [
+        "Discord.exe",
+        "DiscordPTB.exe", 
+        "DiscordCanary.exe"
+    ],
+    "enable_auto_fix": true,
+    "enable_tray_refresh": true,
+    "enable_window_simulation": false,
+    "startup_delay": 5
+} 

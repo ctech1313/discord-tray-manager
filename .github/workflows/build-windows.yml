@@ -1,0 +1,59 @@
+name: Build Windows Installer
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller pillow
+    
+    - name: Create application icon
+      run: python create_icon.py
+    
+    - name: Build executable
+      run: python build_exe.py
+    
+    - name: Install NSIS
+      run: |
+        Invoke-WebRequest -Uri "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.09/nsis-3.09-setup.exe" -OutFile "nsis-setup.exe"
+        Start-Process -FilePath "nsis-setup.exe" -ArgumentList "/S" -Wait
+        echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    
+    - name: Build installer
+      run: |
+        copy "dist\DiscordTrayManager.exe" .
+        makensis installer.nsi
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Discord-Tray-Manager-Windows
+        path: |
+          Discord_Tray_Manager_Setup.exe
+          Discord_Tray_Manager_Portable/
+    
+    - name: Release binaries
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          Discord_Tray_Manager_Setup.exe
+          Discord_Tray_Manager_Portable.zip 
