@@ -18,7 +18,7 @@ import sys
 from tray_icon_helper import TrayIconManager, refresh_notification_area, is_discord_running, get_discord_processes
 
 # Import our helper module
-from tray_icon_helper import TrayIconManager
+# (TrayIconManager already imported above)
 
 # Get user's AppData directory for log file
 def get_log_file_path():
@@ -236,16 +236,16 @@ def main():
         print("This application is designed for Windows only.")
         sys.exit(1)
     
+    manager = DiscordTrayManager()
+    
     print("Discord Tray Manager")
     print("=" * 50)
     print("- Monitors Discord system tray icon")
     print("- Automatically fixes missing tray icons")
-    print(f"- Checking every {check_interval} seconds")
+    print(f"- Checking every {manager.check_interval} seconds")
     print(f"- Log all activities to {get_log_file_path()}")
     print("- Press Ctrl+C to stop")
     print("=" * 50)
-    
-    manager = DiscordTrayManager()
     
     try:
         manager.monitor_and_fix()

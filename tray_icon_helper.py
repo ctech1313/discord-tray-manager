@@ -184,3 +184,44 @@ class TrayIconManager:
         except Exception as e:
             logger.error(f"Error simulating Discord tray action: {e}")
             return False 
+
+# Standalone function wrappers for backward compatibility
+def refresh_notification_area():
+    """Standalone function to refresh notification area"""
+    manager = TrayIconManager()
+    return manager.refresh_notification_area()
+
+def is_discord_running():
+    """Check if Discord is running by looking for Discord processes"""
+    import subprocess
+    try:
+        result = subprocess.run(['tasklist', '/FO', 'CSV'], 
+                              capture_output=True, text=True, check=True)
+        
+        discord_processes = ['Discord.exe', 'DiscordPTB.exe', 'DiscordCanary.exe']
+        for process_name in discord_processes:
+            if process_name.lower() in result.stdout.lower():
+                logger.debug(f"Found running Discord process: {process_name}")
+                return True
+        return False
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error checking running processes: {e}")
+        return False
+
+def get_discord_processes():
+    """Get list of running Discord processes"""
+    import subprocess
+    processes = []
+    try:
+        result = subprocess.run(['tasklist', '/FO', 'CSV'], 
+                              capture_output=True, text=True, check=True)
+        
+        discord_processes = ['Discord.exe', 'DiscordPTB.exe', 'DiscordCanary.exe']
+        for process_name in discord_processes:
+            if process_name.lower() in result.stdout.lower():
+                processes.append(process_name)
+        
+        return processes
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error getting Discord processes: {e}")
+        return [] 

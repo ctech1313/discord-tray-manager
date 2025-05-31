@@ -21,7 +21,7 @@ import base64
 from tray_icon_helper import TrayIconManager, refresh_notification_area, is_discord_running, get_discord_processes
 
 # Import our helper module
-from tray_icon_helper import TrayIconManager
+# (TrayIconManager already imported above)
 
 # Simple icon data (16x16 icon encoded as base64)
 ICON_DATA = """
