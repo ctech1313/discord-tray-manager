@@ -83,8 +83,11 @@ section "install"
 	# Auto-start with Windows (run at startup)
 	WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${APPNAME}" "$INSTDIR\DiscordTrayManager.exe"
 
+	# Start the application immediately after installation
+	Exec "$INSTDIR\DiscordTrayManager.exe"
+
 	# Success message
-	MessageBox MB_OK "Discord Tray Manager has been installed successfully!$\r$\n$\r$\nThe application will start automatically with Windows.$\r$\nYou can also start it manually from the Start Menu."
+	MessageBox MB_OK "Discord Tray Manager has been installed successfully!$\r$\n$\r$\nThe application has been started and will start automatically with Windows.$\r$\nLook for the Discord Tray Manager icon in your system tray."
 sectionEnd
 
 # Uninstaller

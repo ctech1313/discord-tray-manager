@@ -20,9 +20,6 @@ from PIL import Image, ImageDraw
 from pystray import MenuItem as item
 from tray_icon_helper import TrayIconManager, refresh_notification_area, is_discord_running, get_discord_processes
 
-# Import our helper module
-# (TrayIconManager already imported above)
-
 # Simple icon data (16x16 icon encoded as base64)
 ICON_DATA = """
 iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlz
