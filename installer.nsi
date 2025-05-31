@@ -133,16 +133,41 @@ function un.onInit
 functionEnd
 
 section "uninstall"
-	# Stop the application if running
+	# Stop the application if running (more aggressive)
 	nsExec::Exec "taskkill /f /im DiscordTrayManager.exe"
+	nsExec::Exec "wmic process where name='DiscordTrayManager.exe' delete"
+	
+	# Wait for processes to fully terminate
+	Sleep 3000
 
 	# Remove Start Menu launcher
 	delete "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk"
 	delete "$SMPROGRAMS\${APPNAME}\Uninstall.lnk"
 	rmDir "$SMPROGRAMS\${APPNAME}"
 
-	# Remove files
+	# Remove files (with retry for locked files)
+	SetOverwrite on
+	
+	# Try to delete main executable
+	ClearErrors
 	delete "$INSTDIR\DiscordTrayManager.exe"
+	IfErrors retry_exe
+	Goto continue_uninstall
+	
+	retry_exe:
+	Sleep 2000
+	ClearErrors
+	delete "$INSTDIR\DiscordTrayManager.exe"
+	IfErrors exe_locked
+	Goto continue_uninstall
+	
+	exe_locked:
+	# If still locked, try to rename it for deletion on reboot
+	Rename "$INSTDIR\DiscordTrayManager.exe" "$INSTDIR\DiscordTrayManager.exe.old"
+	Delete /REBOOTOK "$INSTDIR\DiscordTrayManager.exe.old"
+	
+	continue_uninstall:
+	# Remove other files
 	delete "$INSTDIR\config.json"
 	delete "$INSTDIR\README.md"
 	delete "$INSTDIR\uninstall.exe"
@@ -152,9 +177,19 @@ section "uninstall"
 	RMDir /r "$LOCALAPPDATA\Discord Tray Manager"
 	skip_userdata:
 	
-	# Remove directory if empty
+	# Try to remove directory (might fail if files are locked)
 	RMDir "$INSTDIR"
-
+	
+	# If directory still exists, schedule for deletion on reboot
+	IfFileExists "$INSTDIR" 0 dir_removed
+	RMDir /REBOOTOK "$INSTDIR"
+	MessageBox MB_OK "Some files could not be removed and will be deleted on next reboot."
+	Goto cleanup_registry
+	
+	dir_removed:
+	MessageBox MB_OK "Discord Tray Manager has been successfully uninstalled."
+	
+	cleanup_registry:
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
 	

@@ -168,7 +168,44 @@ class TrayIconManager:
             return True  # If we can't check, assume it's fine
     
     def promote_discord_to_main_tray(self):
-        """Promote Discord icon to main system tray area (Windows 11 fix)"""
+        """Promote Discord icon to main system tray area using Shell API"""
+        try:
+            # Try multiple approaches to force Discord to main tray
+            success = False
+            
+            # Method 1: Use Shell_NotifyIcon to refresh Discord's tray presence
+            shell32 = ctypes.windll.shell32
+            user32 = ctypes.windll.user32
+            
+            # Find Discord windows first
+            discord_windows = self.find_discord_windows()
+            if not discord_windows:
+                logger.debug("No Discord windows found for promotion")
+                return False
+            
+            # Method 2: Send WM_TASKBARCREATED to Discord to refresh its tray icon
+            WM_TASKBARCREATED = user32.RegisterWindowMessageW("TaskbarCreated")
+            
+            for window in discord_windows:
+                hwnd = window['hwnd']
+                if 'discord' in window['title'].lower():
+                    # Send taskbar created message to force tray icon refresh
+                    user32.SendMessageW(hwnd, WM_TASKBARCREATED, 0, 0)
+                    logger.debug(f"Sent TaskbarCreated message to Discord window: {window['title']}")
+                    success = True
+            
+            # Method 3: Registry approach as fallback
+            if not success:
+                success = self.registry_promote_discord()
+                
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error promoting Discord to main tray: {e}")
+            return False
+    
+    def registry_promote_discord(self):
+        """Fallback registry method to promote Discord"""
         try:
             import winreg
             
@@ -218,14 +255,14 @@ class TrayIconManager:
                         break
                         
             if promoted_count > 0:
-                logger.info(f"Successfully promoted {promoted_count} Discord icon(s)")
+                logger.info(f"Successfully promoted {promoted_count} Discord icon(s) via registry")
                 return True
             else:
-                logger.debug("No Discord icons found to promote")
+                logger.debug("No Discord icons found to promote in registry")
                 return False
             
         except Exception as e:
-            logger.error(f"Error promoting Discord to main tray: {e}")
+            logger.error(f"Error promoting Discord via registry: {e}")
             return False
     
     def refresh_notification_area(self):
@@ -269,8 +306,19 @@ def is_discord_running():
     """Check if Discord is running by looking for Discord processes"""
     import subprocess
     try:
-        result = subprocess.run(['tasklist', '/FO', 'CSV'], 
-                              capture_output=True, text=True, check=True)
+        # Hide console window for subprocess
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        
+        result = subprocess.run(
+            ['tasklist', '/FO', 'CSV'], 
+            capture_output=True, 
+            text=True, 
+            check=True,
+            startupinfo=startupinfo,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
         
         discord_processes = ['Discord.exe', 'DiscordPTB.exe', 'DiscordCanary.exe']
         for process_name in discord_processes:
@@ -287,8 +335,19 @@ def get_discord_processes():
     import subprocess
     processes = []
     try:
-        result = subprocess.run(['tasklist', '/FO', 'CSV'], 
-                              capture_output=True, text=True, check=True)
+        # Hide console window for subprocess
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        
+        result = subprocess.run(
+            ['tasklist', '/FO', 'CSV'], 
+            capture_output=True, 
+            text=True, 
+            check=True,
+            startupinfo=startupinfo,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
         
         discord_processes = ['Discord.exe', 'DiscordPTB.exe', 'DiscordCanary.exe']
         for process_name in discord_processes:

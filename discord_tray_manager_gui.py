@@ -244,8 +244,19 @@ class DiscordTrayManager:
     def is_discord_running(self):
         """Check if any Discord process is currently running"""
         try:
-            result = subprocess.run(['tasklist', '/FO', 'CSV'], 
-                                  capture_output=True, text=True, check=True)
+            # Hide console window for subprocess
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+            
+            result = subprocess.run(
+                ['tasklist', '/FO', 'CSV'], 
+                capture_output=True, 
+                text=True, 
+                check=True,
+                startupinfo=startupinfo,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
             
             for process_name in self.discord_processes:
                 if process_name.lower() in result.stdout.lower():
