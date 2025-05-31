@@ -167,32 +167,63 @@ class TrayIconManager:
             logger.debug(f"Error checking Discord registry promotion: {e}")
             return True  # If we can't check, assume it's fine
     
-    def promote_discord_to_main_tray(self):
-        """Promote Discord icon to main system tray area using Shell API"""
+    def find_startallback_tray(self):
+        """Find StartAllBack tray windows if present"""
         try:
-            # Try multiple approaches to force Discord to main tray
+            startallback_windows = []
+            
+            def enum_windows_proc(hwnd, lparam):
+                # Get window class name
+                class_name = ctypes.create_unicode_buffer(256)
+                self.user32.GetClassNameW(hwnd, class_name, 256)
+                
+                # Get window title
+                title_length = self.user32.GetWindowTextLengthW(hwnd)
+                title = ""
+                if title_length > 0:
+                    title_buffer = ctypes.create_unicode_buffer(title_length + 1)
+                    self.user32.GetWindowTextW(hwnd, title_buffer, title_length + 1)
+                    title = title_buffer.value
+                
+                # Check for StartAllBack tray windows
+                class_lower = class_name.value.lower()
+                if ('startallback' in class_lower or 
+                    'shell_traywnd' in class_lower or
+                    'traynotifywnd' in class_lower):
+                    startallback_windows.append({
+                        'hwnd': hwnd,
+                        'class': class_name.value,
+                        'title': title
+                    })
+                
+                return True
+            
+            # Define the callback type
+            EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+            
+            # Enumerate all windows
+            self.user32.EnumWindows(EnumWindowsProc(enum_windows_proc), 0)
+            
+            return startallback_windows
+            
+        except Exception as e:
+            logger.debug(f"Error finding StartAllBack windows: {e}")
+            return []
+
+    def promote_discord_to_main_tray(self):
+        """Promote Discord icon to main system tray area using multiple methods"""
+        try:
             success = False
             
-            # Method 1: Use Shell_NotifyIcon to refresh Discord's tray presence
-            shell32 = ctypes.windll.shell32
-            user32 = ctypes.windll.user32
+            # Method 1: Check for StartAllBack and use alternative approach
+            startallback_windows = self.find_startallback_tray()
+            if startallback_windows:
+                logger.info("StartAllBack detected, using alternative tray approach")
+                success = self.promote_discord_startallback_compatible()
             
-            # Find Discord windows first
-            discord_windows = self.find_discord_windows()
-            if not discord_windows:
-                logger.debug("No Discord windows found for promotion")
-                return False
-            
-            # Method 2: Send WM_TASKBARCREATED to Discord to refresh its tray icon
-            WM_TASKBARCREATED = user32.RegisterWindowMessageW("TaskbarCreated")
-            
-            for window in discord_windows:
-                hwnd = window['hwnd']
-                if 'discord' in window['title'].lower():
-                    # Send taskbar created message to force tray icon refresh
-                    user32.SendMessageW(hwnd, WM_TASKBARCREATED, 0, 0)
-                    logger.debug(f"Sent TaskbarCreated message to Discord window: {window['title']}")
-                    success = True
+            # Method 2: Standard Windows Shell API
+            if not success:
+                success = self.promote_discord_shell_api()
             
             # Method 3: Registry approach as fallback
             if not success:
@@ -202,6 +233,76 @@ class TrayIconManager:
             
         except Exception as e:
             logger.error(f"Error promoting Discord to main tray: {e}")
+            return False
+    
+    def promote_discord_startallback_compatible(self):
+        """StartAllBack-compatible Discord promotion"""
+        try:
+            # For StartAllBack, we need to use a different approach
+            # Try to force Discord to recreate its tray icon
+            
+            discord_windows = self.find_discord_windows()
+            if not discord_windows:
+                logger.debug("No Discord windows found")
+                return False
+            
+            success = False
+            
+            # Method 1: Send Explorer restart simulation to Discord
+            for window in discord_windows:
+                hwnd = window['hwnd']
+                if 'discord' in window['title'].lower():
+                    # Send messages that simulate explorer restart
+                    WM_SETTINGCHANGE = 0x001A
+                    self.user32.SendMessageW(hwnd, WM_SETTINGCHANGE, 0, 0)
+                    
+                    # Also try the taskbar created message
+                    WM_TASKBARCREATED = self.user32.RegisterWindowMessageW("TaskbarCreated")
+                    self.user32.SendMessageW(hwnd, WM_TASKBARCREATED, 0, 0)
+                    
+                    logger.debug(f"Sent StartAllBack-compatible messages to Discord: {window['title']}")
+                    success = True
+            
+            # Method 2: Try to refresh all tray icons via broadcast
+            if success:
+                # Broadcast to all windows that taskbar was recreated
+                HWND_BROADCAST = 0xFFFF
+                WM_TASKBARCREATED = self.user32.RegisterWindowMessageW("TaskbarCreated")
+                self.user32.SendMessageW(HWND_BROADCAST, WM_TASKBARCREATED, 0, 0)
+                logger.info("Broadcasted taskbar recreation message for StartAllBack")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error in StartAllBack-compatible promotion: {e}")
+            return False
+    
+    def promote_discord_shell_api(self):
+        """Standard Windows Shell API approach"""
+        try:
+            # Find Discord windows first
+            discord_windows = self.find_discord_windows()
+            if not discord_windows:
+                logger.debug("No Discord windows found for promotion")
+                return False
+            
+            success = False
+            
+            # Send WM_TASKBARCREATED to Discord to refresh its tray icon
+            WM_TASKBARCREATED = self.user32.RegisterWindowMessageW("TaskbarCreated")
+            
+            for window in discord_windows:
+                hwnd = window['hwnd']
+                if 'discord' in window['title'].lower():
+                    # Send taskbar created message to force tray icon refresh
+                    self.user32.SendMessageW(hwnd, WM_TASKBARCREATED, 0, 0)
+                    logger.debug(f"Sent TaskbarCreated message to Discord window: {window['title']}")
+                    success = True
+                    
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error in Shell API promotion: {e}")
             return False
     
     def registry_promote_discord(self):
@@ -268,22 +369,42 @@ class TrayIconManager:
     def refresh_notification_area(self):
         """Force refresh of the notification area and promote Discord"""
         try:
-            # Promote Discord to main tray via registry
+            # Promote Discord to main tray via the improved method
             promoted = self.promote_discord_to_main_tray()
             
             if promoted:
-                # Simple notification area refresh
-                tray_wnd = self.user32.FindWindowW("Shell_TrayWnd", None)
-                if tray_wnd:
-                    notify_wnd = self.user32.FindWindowExW(tray_wnd, None, "TrayNotifyWnd", None)
-                    if notify_wnd:
-                        # Just invalidate and update, no aggressive commands
-                        self.user32.InvalidateRect(notify_wnd, None, True)
-                        self.user32.UpdateWindow(notify_wnd)
+                # Check if StartAllBack is running for compatible refresh
+                startallback_windows = self.find_startallback_tray()
+                
+                if startallback_windows:
+                    # StartAllBack-specific refresh
+                    logger.info("Refreshing StartAllBack tray area")
+                    for sb_window in startallback_windows:
+                        hwnd = sb_window['hwnd']
+                        # Refresh StartAllBack tray windows
+                        self.user32.InvalidateRect(hwnd, None, True)
+                        self.user32.UpdateWindow(hwnd)
+                        # Send refresh message
+                        WM_COMMAND = 0x0111
+                        self.user32.SendMessageW(hwnd, WM_COMMAND, 419, 0)
+                else:
+                    # Standard Windows tray refresh
+                    tray_wnd = self.user32.FindWindowW("Shell_TrayWnd", None)
+                    if tray_wnd:
+                        notify_wnd = self.user32.FindWindowExW(tray_wnd, None, "TrayNotifyWnd", None)
+                        if notify_wnd:
+                            self.user32.InvalidateRect(notify_wnd, None, True)
+                            self.user32.UpdateWindow(notify_wnd)
                         
-                        logger.info("Promoted Discord to main tray and refreshed notification area")
-                        return True
-                        
+                            # Also try overflow area
+                            overflow_wnd = self.user32.FindWindowExW(None, None, "NotifyIconOverflowWindow", None)
+                            if overflow_wnd:
+                                self.user32.InvalidateRect(overflow_wnd, None, True)
+                                self.user32.UpdateWindow(overflow_wnd)
+                
+                logger.info("Promoted Discord and refreshed tray area")
+                return True
+                
             return promoted
             
         except Exception as e:

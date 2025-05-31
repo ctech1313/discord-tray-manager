@@ -45,36 +45,67 @@ function .onInit
 	setShellVarContext all
 	!insertmacro VerifyUserIsAdmin
 	
-	# Check for existing installation and offer to remove it
+	# Check for existing installation in multiple locations
 	ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString"
+	${If} $0 == ""
+		# Also check 32-bit registry on 64-bit systems
+		ReadRegStr $0 HKLM "Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString"
+	${EndIf}
+	
+	# Check if executable exists in Program Files
+	${If} $0 == ""
+		IfFileExists "$PROGRAMFILES\${APPNAME}\DiscordTrayManager.exe" 0 check_x86
+		StrCpy $0 "$PROGRAMFILES\${APPNAME}\uninstall.exe"
+		Goto found_existing
+		
+		check_x86:
+		IfFileExists "$PROGRAMFILES32\${APPNAME}\DiscordTrayManager.exe" 0 no_existing
+		StrCpy $0 "$PROGRAMFILES32\${APPNAME}\uninstall.exe"
+		
+		found_existing:
+	${EndIf}
+	
 	${If} $0 != ""
-		MessageBox MB_YESNO|MB_ICONQUESTION "An existing version of ${APPNAME} was found. Do you want to uninstall it first?" IDYES uninstall_existing
-		Goto continue_install
+		MessageBox MB_YESNO|MB_ICONQUESTION "An existing version of ${APPNAME} was found. The old version must be removed first. Continue?" IDYES uninstall_existing IDNO abort_install
 		
 		uninstall_existing:
-		# Stop the running application first
+		# Stop the running application first (multiple methods)
 		nsExec::Exec "taskkill /f /im DiscordTrayManager.exe"
+		nsExec::Exec "wmic process where name='DiscordTrayManager.exe' delete"
+		Sleep 3000
 		
 		# Run the uninstaller
 		ClearErrors
-		ExecWait '$0 /S'
-		IfErrors uninstall_failed
+		${If} ${FileExists} "$0"
+			DetailPrint "Running uninstaller: $0"
+			ExecWait '"$0" /S' $1
+			DetailPrint "Uninstaller exit code: $1"
+		${Else}
+			# Manual cleanup if uninstaller doesn't exist
+			DetailPrint "Uninstaller not found, performing manual cleanup"
+			RMDir /r "$PROGRAMFILES\${APPNAME}"
+			RMDir /r "$PROGRAMFILES32\${APPNAME}"
+			DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
+			DeleteRegKey HKLM "Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
+			DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${APPNAME}"
+		${EndIf}
 		
-		# Wait a moment for uninstaller to complete
-		Sleep 2000
+		# Wait for cleanup to complete
+		Sleep 3000
 		
-		# Verify uninstallation
-		ReadRegStr $1 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString"
-		${If} $1 != ""
-			MessageBox MB_OK "Previous version could not be completely removed. Installation will continue, but you may need to manually remove old files."
+		# Verify cleanup
+		${If} ${FileExists} "$INSTDIR\DiscordTrayManager.exe"
+			MessageBox MB_OK "Some files from the previous installation could not be removed. They will be overwritten."
 		${EndIf}
 		Goto continue_install
 		
-		uninstall_failed:
-		MessageBox MB_OK "Could not run the uninstaller for the previous version. Installation will continue, but you may need to manually remove old files."
+		abort_install:
+		Abort "Installation cancelled by user."
 		
 		continue_install:
 	${EndIf}
+	
+	no_existing:
 functionEnd
 
 section "install"
