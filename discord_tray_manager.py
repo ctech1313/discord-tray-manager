@@ -205,32 +205,94 @@ class DiscordTrayManager:
         self.running = False
         logger.info("Discord Tray Manager stopped")
 
-def main():
-    """Main entry point"""
-    if sys.platform != 'win32':
-        print("This application is designed for Windows only.")
-        sys.exit(1)
-    
-    manager = DiscordTrayManager()
-    
-    print("Discord Tray Manager")
-    print("=" * 50)
-    print("- Monitors Discord system tray icon")
-    print("- Automatically fixes missing tray icons")
-    print(f"- Checking every {manager.check_interval} seconds")
-    print(f"- Log all activities to {get_log_file_path()}")
-    print("- Press Ctrl+C to stop")
-    print("=" * 50)
-    
+def check_and_fix_discord_tray():
+    """Check if Discord tray icon is visible and fix if needed"""
     try:
-        manager.monitor_and_fix()
-    except KeyboardInterrupt:
-        print("\nStopping Discord Tray Manager...")
-        manager.stop()
+        logger.debug("=== Starting Discord tray check cycle ===")
+        
+        # Check if Discord is running
+        if not is_discord_running():
+            logger.debug("Discord is not running, skipping tray check")
+            return
+        
+        logger.info("Discord is running, checking tray icon status...")
+        
+        # Check if Discord icon is visible in tray
+        manager = TrayIconManager()
+        is_visible = manager.is_discord_icon_visible()
+        
+        logger.info(f"Discord tray icon visibility check result: {is_visible}")
+        
+        if not is_visible:
+            logger.warning("Discord icon is not visible in main tray, attempting to fix...")
+            
+            # Try to fix the tray icon
+            success = refresh_notification_area()
+            
+            if success:
+                logger.info("Successfully fixed Discord tray icon visibility")
+            else:
+                logger.error("Failed to fix Discord tray icon visibility")
+        else:
+            logger.debug("Discord icon is already visible in main tray")
+            
+        logger.debug("=== Discord tray check cycle complete ===")
+        
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
-        print(f"Fatal error occurred: {e}")
-        sys.exit(1)
+        logger.error(f"Error in Discord tray check: {e}")
+
+def main():
+    try:
+        logger.info("===== DISCORD TRAY MANAGER STARTING =====")
+        logger.info(f"Process ID: {os.getpid()}")
+        logger.info(f"Log level: {logger.level}")
+        
+        # Load configuration
+        logger.info("Loading configuration...")
+        config = load_config()
+        logger.info(f"Configuration loaded: check_interval={config.get('check_interval', 30)}s, auto_fix={config.get('enable_auto_fix', True)}")
+        
+        check_interval = config.get('check_interval', 30)
+        enable_auto_fix = config.get('enable_auto_fix', True)
+        startup_delay = config.get('startup_delay', 5)
+        
+        if not enable_auto_fix:
+            logger.warning("Auto-fix is disabled in configuration - will only monitor, not fix")
+        
+        # Startup delay
+        if startup_delay > 0:
+            logger.info(f"Startup delay: waiting {startup_delay} seconds before beginning checks...")
+            time.sleep(startup_delay)
+        
+        # Create system tray icon
+        logger.info("Creating system tray icon...")
+        create_tray_icon()
+        
+        logger.info(f"===== DISCORD TRAY MANAGER READY - CHECK INTERVAL: {check_interval}s =====")
+        
+        # Main loop
+        while True:
+            try:
+                if enable_auto_fix:
+                    check_and_fix_discord_tray()
+                else:
+                    logger.debug("Auto-fix disabled, skipping Discord tray check")
+                
+                logger.debug(f"Sleeping for {check_interval} seconds until next check...")
+                time.sleep(check_interval)
+                
+            except KeyboardInterrupt:
+                logger.info("Received keyboard interrupt, shutting down...")
+                break
+            except Exception as e:
+                logger.error(f"Error in main loop: {e}")
+                logger.info(f"Continuing after error, next check in {check_interval} seconds...")
+                time.sleep(check_interval)
+                
+    except Exception as e:
+        logger.error(f"Fatal error in Discord Tray Manager: {e}")
+    finally:
+        logger.info("===== DISCORD TRAY MANAGER SHUTTING DOWN =====")
 
 if __name__ == "__main__":
     main() 
