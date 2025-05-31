@@ -6,6 +6,7 @@ import ctypes
 from ctypes import wintypes, Structure, POINTER, byref
 import struct
 import logging
+import winreg
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,11 @@ class TrayIconManager:
                 logger.debug("No Discord windows found")
                 return False
             
+            # Check if Discord is promoted in registry (Windows 11 specific)
+            if not self.is_discord_promoted_in_registry():
+                logger.info("Discord is not promoted to main tray area")
+                return False
+            
             # Check if any Discord window is in the tray (not visible but exists)
             has_main_window = False
             has_hidden_window = False
@@ -147,9 +153,91 @@ class TrayIconManager:
             logger.error(f"Error checking Discord icon visibility: {e}")
             return False
     
-    def refresh_notification_area(self):
-        """Force refresh of the notification area"""
+    def is_discord_promoted_in_registry(self):
+        """Check if Discord is promoted to main tray in Windows registry"""
         try:
+            import winreg
+            
+            registry_path = r"Control Panel\NotifyIconSettings"
+            
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, registry_path) as main_key:
+                i = 0
+                while True:
+                    try:
+                        subkey_name = winreg.EnumKey(main_key, i)
+                        
+                        if 'discord' in subkey_name.lower():
+                            subkey_path = f"{registry_path}\\{subkey_name}"
+                            
+                            try:
+                                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, subkey_path) as discord_key:
+                                    is_promoted, _ = winreg.QueryValueEx(discord_key, "IsPromoted")
+                                    if is_promoted == 1:
+                                        logger.debug(f"Discord is promoted in registry: {subkey_name}")
+                                        return True
+                                    else:
+                                        logger.debug(f"Discord is not promoted in registry: {subkey_name}")
+                                        return False
+                            except FileNotFoundError:
+                                logger.debug(f"IsPromoted value not found for: {subkey_name}")
+                        
+                        i += 1
+                    except OSError:
+                        break
+                        
+            return False
+            
+        except Exception as e:
+            logger.debug(f"Error checking Discord registry promotion: {e}")
+            return False
+    
+    def promote_discord_to_main_tray(self):
+        """Promote Discord icon to main system tray area (Windows 11 fix)"""
+        try:
+            # Registry path for notification icon settings
+            registry_path = r"Control Panel\NotifyIconSettings"
+            
+            # Open the main registry key
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, registry_path) as main_key:
+                # Enumerate all subkeys (each represents a tray icon)
+                i = 0
+                while True:
+                    try:
+                        subkey_name = winreg.EnumKey(main_key, i)
+                        
+                        # Check if this subkey is related to Discord
+                        if 'discord' in subkey_name.lower():
+                            subkey_path = f"{registry_path}\\{subkey_name}"
+                            
+                            try:
+                                # Open the Discord-related subkey
+                                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, subkey_path, 0, winreg.KEY_SET_VALUE) as discord_key:
+                                    # Set IsPromoted to 1 to show in main tray
+                                    winreg.SetValueEx(discord_key, "IsPromoted", 0, winreg.REG_DWORD, 1)
+                                    logger.info(f"Promoted Discord icon to main tray: {subkey_name}")
+                                    
+                            except FileNotFoundError:
+                                logger.debug(f"Could not open Discord registry key: {subkey_name}")
+                            except PermissionError:
+                                logger.warning(f"Permission denied accessing registry key: {subkey_name}")
+                        
+                        i += 1
+                    except OSError:
+                        # No more subkeys
+                        break
+                        
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error promoting Discord to main tray: {e}")
+            return False
+    
+    def refresh_notification_area(self):
+        """Force refresh of the notification area and promote Discord"""
+        try:
+            # First, promote Discord to main tray
+            self.promote_discord_to_main_tray()
+            
             # Find the notification area
             tray_wnd = self.user32.FindWindowW("Shell_TrayWnd", None)
             if tray_wnd:
@@ -165,7 +253,11 @@ class TrayIconManager:
                         self.user32.InvalidateRect(overflow_wnd, None, True)
                         self.user32.UpdateWindow(overflow_wnd)
                     
-                    logger.debug("Refreshed notification area")
+                    # Send a message to refresh the entire tray
+                    WM_COMMAND = 0x0111
+                    self.user32.SendMessageW(tray_wnd, WM_COMMAND, 419, 0)  # Refresh tray
+                    
+                    logger.debug("Refreshed notification area and promoted Discord")
                     return True
             
             return False

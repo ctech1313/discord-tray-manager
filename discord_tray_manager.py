@@ -142,51 +142,7 @@ class DiscordTrayManager:
                 success = True
                 logger.info("Successfully simulated Discord tray action")
         
-        # Method 3: Registry-based approach for notification settings (disabled by default)
-        if self.enable_registry_check and not success:
-            logger.debug("Attempting registry-based notification fix...")
-            self.ensure_discord_notifications_enabled()
-        
         return success
-
-    def ensure_discord_notifications_enabled(self):
-        """Ensure Discord notifications are enabled in Windows settings"""
-        try:
-            # PowerShell script to check and enable Discord notifications
-            powershell_script = '''
-            $ErrorActionPreference = "SilentlyContinue"
-            
-            # Check if Discord notifications are enabled
-            $notificationSettings = Get-ChildItem "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings" -ErrorAction SilentlyContinue
-            
-            foreach ($setting in $notificationSettings) {
-                $appId = Split-Path $setting.Name -Leaf
-                if ($appId -like "*Discord*") {
-                    $currentValue = Get-ItemProperty -Path $setting.PSPath -Name "Enabled" -ErrorAction SilentlyContinue
-                    if ($currentValue.Enabled -eq 0) {
-                        Write-Output "Enabling notifications for $appId"
-                        Set-ItemProperty -Path $setting.PSPath -Name "Enabled" -Value 1
-                    }
-                }
-            }
-            '''
-            
-            # Run PowerShell hidden to prevent popup windows
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-            
-            result = subprocess.run([
-                'powershell', '-WindowStyle', 'Hidden', '-Command', powershell_script
-            ], capture_output=True, text=True, startupinfo=startupinfo, creationflags=subprocess.CREATE_NO_WINDOW)
-            
-            if result.returncode == 0:
-                logger.debug("Checked Discord notification settings")
-            else:
-                logger.warning("Could not modify notification settings")
-                
-        except Exception as e:
-            logger.error(f"Error ensuring Discord notifications: {e}")
 
     def monitor_and_fix(self):
         """Main monitoring loop"""
