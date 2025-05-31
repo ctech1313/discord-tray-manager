@@ -44,6 +44,37 @@ ${EndIf}
 function .onInit
 	setShellVarContext all
 	!insertmacro VerifyUserIsAdmin
+	
+	# Check for existing installation and offer to remove it
+	ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString"
+	${If} $0 != ""
+		MessageBox MB_YESNO|MB_ICONQUESTION "An existing version of ${APPNAME} was found. Do you want to uninstall it first?" IDYES uninstall_existing
+		Goto continue_install
+		
+		uninstall_existing:
+		# Stop the running application first
+		nsExec::Exec "taskkill /f /im DiscordTrayManager.exe"
+		
+		# Run the uninstaller
+		ClearErrors
+		ExecWait '$0 /S'
+		IfErrors uninstall_failed
+		
+		# Wait a moment for uninstaller to complete
+		Sleep 2000
+		
+		# Verify uninstallation
+		ReadRegStr $1 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}" "UninstallString"
+		${If} $1 != ""
+			MessageBox MB_OK "Previous version could not be completely removed. Installation will continue, but you may need to manually remove old files."
+		${EndIf}
+		Goto continue_install
+		
+		uninstall_failed:
+		MessageBox MB_OK "Could not run the uninstaller for the previous version. Installation will continue, but you may need to manually remove old files."
+		
+		continue_install:
+	${EndIf}
 functionEnd
 
 section "install"
