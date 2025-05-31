@@ -60,6 +60,7 @@ class DiscordTrayManager:
             self.enable_auto_fix = config.get('enable_auto_fix', True)
             self.enable_tray_refresh = config.get('enable_tray_refresh', True)
             self.enable_window_simulation = config.get('enable_window_simulation', False)
+            self.enable_registry_check = config.get('enable_registry_check', False)
             self.startup_delay = config.get('startup_delay', 5)
             
             # Setup logging with config level
@@ -82,6 +83,7 @@ class DiscordTrayManager:
         self.enable_auto_fix = True
         self.enable_tray_refresh = True
         self.enable_window_simulation = False
+        self.enable_registry_check = False
         self.startup_delay = 5
         setup_logging('INFO')
         
@@ -140,8 +142,8 @@ class DiscordTrayManager:
                 success = True
                 logger.info("Successfully simulated Discord tray action")
         
-        # Method 3: Registry-based approach for notification settings
-        if not success:
+        # Method 3: Registry-based approach for notification settings (disabled by default)
+        if self.enable_registry_check and not success:
             logger.debug("Attempting registry-based notification fix...")
             self.ensure_discord_notifications_enabled()
         
@@ -169,8 +171,14 @@ class DiscordTrayManager:
             }
             '''
             
-            result = subprocess.run(['powershell', '-Command', powershell_script], 
-                                  capture_output=True, text=True)
+            # Run PowerShell hidden to prevent popup windows
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+            
+            result = subprocess.run([
+                'powershell', '-WindowStyle', 'Hidden', '-Command', powershell_script
+            ], capture_output=True, text=True, startupinfo=startupinfo, creationflags=subprocess.CREATE_NO_WINDOW)
             
             if result.returncode == 0:
                 logger.debug("Checked Discord notification settings")

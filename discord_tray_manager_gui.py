@@ -15,9 +15,9 @@ import ctypes
 from ctypes import wintypes
 import winreg
 import sys
-import tkinter as tk
-from tkinter import messagebox
-import base64
+import pystray
+from PIL import Image, ImageDraw
+from pystray import MenuItem as item
 from tray_icon_helper import TrayIconManager, refresh_notification_area, is_discord_running, get_discord_processes
 
 # Import our helper module
@@ -37,34 +37,125 @@ LCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws
 LCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws
 """
 
+def create_tray_image():
+    """Create a simple system tray icon"""
+    # Create a simple 64x64 icon
+    width = 64
+    height = 64
+    image = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    
+    # Draw a simple Discord-style rounded rectangle
+    # Blue color similar to Discord
+    color = (88, 101, 242, 255)  # Discord blurple
+    
+    # Draw rounded rectangle
+    margin = 8
+    draw.rounded_rectangle(
+        [margin, margin, width-margin, height-margin], 
+        radius=12, 
+        fill=color
+    )
+    
+    # Draw a simple "D" in white
+    text_color = (255, 255, 255, 255)
+    # Draw letter D (simplified)
+    draw.rectangle([20, 20, 25, 44], fill=text_color)  # Vertical line
+    draw.rectangle([20, 20, 35, 25], fill=text_color)  # Top horizontal
+    draw.rectangle([20, 39, 35, 44], fill=text_color)  # Bottom horizontal
+    draw.rectangle([35, 25, 40, 39], fill=text_color)  # Right vertical
+    
+    return image
+
 class SystemTrayApp:
     def __init__(self):
         self.manager = None
         self.running = False
         
-        # Create root window (hidden)
-        self.root = tk.Tk()
-        self.root.withdraw()  # Hide the main window
-        
-        # Create tray icon
-        self.setup_tray_icon()
-        
         # Load manager
         self.manager = DiscordTrayManager()
         
-    def setup_tray_icon(self):
-        """Setup system tray icon using Windows Shell NotifyIcon"""
-        try:
-            # We'll use a simple approach with tkinter for the tray icon
-            self.create_tray_menu()
-        except Exception as e:
-            print(f"Could not create tray icon: {e}")
+        # Create tray icon
+        self.icon = pystray.Icon(
+            "discord_tray_manager",
+            create_tray_image(),
+            "Discord Tray Manager",
+            menu=pystray.Menu(
+                item('Discord Tray Manager', self.show_about, default=True),
+                item('Status: Monitoring...', self.show_status),
+                pystray.Menu.SEPARATOR,
+                item('Open Logs', self.open_logs),
+                item('Open Config', self.open_config),
+                pystray.Menu.SEPARATOR,
+                item('Exit', self.quit_application)
+            )
+        )
+        
+    def show_about(self, icon, item):
+        """Show about dialog"""
+        # Use Windows message box
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(
+            0, 
+            "Discord Tray Manager v1.0\n\nKeeps Discord icon visible in system tray.\nRunning silently in background.\n\nRight-click tray icon for options.",
+            "About Discord Tray Manager",
+            0x40  # MB_ICONINFORMATION
+        )
     
-    def create_tray_menu(self):
-        """Create the tray menu"""
-        # This is a simplified tray implementation
-        # In a real deployment, you'd want to use a proper tray library
-        pass
+    def show_status(self, icon, item):
+        """Show current status"""
+        is_discord_running = self.manager.is_discord_running()
+        status = "Discord is running" if is_discord_running else "Discord not detected"
+        
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(
+            0,
+            f"Status: {status}\nCheck interval: {self.manager.check_interval}s\nAuto-fix: {'Enabled' if self.manager.enable_auto_fix else 'Disabled'}",
+            "Discord Tray Manager Status",
+            0x40  # MB_ICONINFORMATION
+        )
+    
+    def open_logs(self, icon, item):
+        """Open log file"""
+        try:
+            log_file = get_log_file_path()
+            os.startfile(log_file)
+        except Exception as e:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(
+                0,
+                f"Could not open log file:\n{e}",
+                "Error",
+                0x10  # MB_ICONERROR
+            )
+    
+    def open_config(self, icon, item):
+        """Open config file"""
+        try:
+            config_file = "config.json"
+            if os.path.exists(config_file):
+                os.startfile(config_file)
+            else:
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(
+                    0,
+                    "Config file not found. Using default settings.",
+                    "Information",
+                    0x40  # MB_ICONINFORMATION
+                )
+        except Exception as e:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(
+                0,
+                f"Could not open config file:\n{e}",
+                "Error",
+                0x10  # MB_ICONERROR
+            )
+    
+    def quit_application(self, icon, item):
+        """Exit the application"""
+        self.stop_monitoring()
+        icon.stop()
     
     def start_monitoring(self):
         """Start the Discord monitoring in a separate thread"""
@@ -84,18 +175,10 @@ class SystemTrayApp:
         if self.manager:
             self.manager.monitor_and_fix()
     
-    def show_about(self):
-        """Show about dialog"""
-        messagebox.showinfo("About", 
-            "Discord Tray Manager v1.0\n\n"
-            "Keeps Discord icon visible in system tray.\n"
-            "Running silently in background.\n\n"
-            "Right-click tray icon for options.")
-    
-    def exit_application(self):
-        """Exit the application"""
-        self.stop_monitoring()
-        self.root.quit()
+    def run(self):
+        """Run the system tray application"""
+        self.start_monitoring()
+        self.icon.run()
 
 # Get user's AppData directory for log file
 def get_log_file_path():
@@ -266,20 +349,29 @@ class DiscordTrayManager:
 def main():
     """Main entry point for GUI version"""
     if sys.platform != 'win32':
-        messagebox.showerror("Error", "This application is designed for Windows only.")
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(
+            0,
+            "This application is designed for Windows only.",
+            "Error",
+            0x10  # MB_ICONERROR
+        )
         sys.exit(1)
     
     try:
         # Create and run the tray application
         app = SystemTrayApp()
-        app.start_monitoring()
-        
-        # Keep the GUI running
-        app.root.mainloop()
+        app.run()
         
     except Exception as e:
         logger.error(f"Fatal error: {e}")
-        messagebox.showerror("Fatal Error", f"An error occurred: {e}")
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(
+            0,
+            f"An error occurred: {e}",
+            "Fatal Error",
+            0x10  # MB_ICONERROR
+        )
         sys.exit(1)
 
 if __name__ == "__main__":

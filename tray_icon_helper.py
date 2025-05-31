@@ -117,15 +117,30 @@ class TrayIconManager:
                 logger.debug("No Discord windows found")
                 return False
             
-            # For each Discord window, check if it has a tray icon
+            # Check if any Discord window is in the tray (not visible but exists)
+            has_main_window = False
+            has_hidden_window = False
+            
             for window in discord_windows:
                 hwnd = window['hwnd']
                 
-                # Check if window is minimized to tray
-                if not self.user32.IsWindowVisible(hwnd):
-                    logger.debug(f"Discord window {window['title']} is hidden (likely in tray)")
-                    return True
+                # Check if this is the main Discord window (not a popup/dialog)
+                if 'discord' in window['title'].lower() and len(window['title']) > 10:
+                    has_main_window = True
+                    
+                    # Check if window is minimized/hidden (likely in tray)
+                    if not self.user32.IsWindowVisible(hwnd):
+                        has_hidden_window = True
+                        logger.debug(f"Discord window {window['title']} is hidden (likely in tray)")
+                    else:
+                        # Window is visible, so Discord icon might not be in tray
+                        logger.debug(f"Discord window {window['title']} is visible")
             
+            # If we have a main Discord window and it's hidden, assume icon is in tray
+            if has_main_window and has_hidden_window:
+                return True
+            
+            # If Discord is running but no hidden windows, icon might be missing from tray
             return False
             
         except Exception as e:

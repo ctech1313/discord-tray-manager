@@ -18,15 +18,16 @@ def install_pyinstaller():
         print("Installing PyInstaller...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
 
-def create_spec_file():
-    """Create PyInstaller spec file for custom configuration"""
-    spec_content = """
+def create_pyinstaller_spec():
+    """Create PyInstaller spec file for building Windows executable"""
+    
+    spec_content = '''
 # -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
 
 a = Analysis(
-    ['discord_tray_manager_gui.py'],
+    ['discord_tray_manager_gui.py'],  # Use GUI version as main
     pathex=[],
     binaries=[],
     datas=[
@@ -34,7 +35,15 @@ a = Analysis(
         ('README.md', '.'),
         ('tray_icon.ico', '.'),
     ],
-    hiddenimports=[],
+    hiddenimports=[
+        'pystray',
+        'PIL',
+        'PIL.Image',
+        'PIL.ImageDraw',
+        'ctypes.wintypes',
+        'winreg',
+        'subprocess',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -54,23 +63,23 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='DiscordTrayManager.exe',
+    name='DiscordTrayManager',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,  # Hide console window
+    console=False,  # No console window for GUI version
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='tray_icon.ico',
-    version='version_info.txt'
+    version='version_info.txt',
+    icon='tray_icon.ico'
 )
-"""
+'''
     
     with open('discord_tray_manager.spec', 'w') as f:
         f.write(spec_content.strip())
@@ -171,7 +180,7 @@ def main():
     install_pyinstaller()
     
     # Create necessary files
-    create_spec_file()
+    create_pyinstaller_spec()
     create_version_info()
     
     # Build executable

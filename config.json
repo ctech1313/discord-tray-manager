@@ -9,5 +9,6 @@
     "enable_auto_fix": true,
     "enable_tray_refresh": true,
     "enable_window_simulation": false,
+    "enable_registry_check": false,
     "startup_delay": 5
 } 

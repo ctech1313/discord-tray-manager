@@ -9,4 +9,20 @@
 # - winreg (for Windows registry access)
 
 # No external dependencies required!
-# This application is designed to be lightweight and use only built-in Python modules. 
+# This application is designed to be lightweight and use only built-in Python modules.
+
+# Discord Tray Manager Dependencies
+# Core requirements for building executable
+pyinstaller>=5.0
+pillow>=9.0
+pystray>=0.19.4
+
+# Development dependencies
+setuptools>=60.0
+
+# Windows-specific (auto-detected by PyInstaller)
+# pywin32  # For Windows API access
+# comtypes # For COM interface
+
+# Optional: For enhanced icon creation
+# Pillow[imagingft] # For advanced text rendering 
